@@ -444,10 +444,44 @@ async function stopScanner() {
 }
 
 /* ---------- DASHBOARD ---------- */
-function renderDashboard() {
-  const all = state.master.concat(state.manual);
-  let green=0, yellow=0, orange=0, red=0;
+/* ============================================================
+   KATEGORI MAP (dari data/kategori.json)
+   ============================================================ */
+let kategoriMap = {};
 
+async function fetchKategoriMap() {
+  // Cek cache dulu
+  const cached = loadLocal("cs77_kategori", null);
+  if (cached && Object.keys(cached).length > 0) {
+    kategoriMap = cached;
+    return;
+  }
+
+  // Kalau belum ada, fetch dari GitHub
+  const urlKategori = "https://raw.githubusercontent.com/KhatwahAmam-Dev/universal_log/main/data/kategori.json";
+  try {
+    const res = await fetch(urlKategori, { cache: "force-cache" });
+    if (res.ok) {
+      kategoriMap = await res.json();
+      saveLocal("cs77_kategori", kategoriMap);
+    }
+  } catch (err) {
+    console.warn("Kategori fetch gagal, pakai fallback:", err);
+  }
+}
+
+function namaKategori(kode) {
+  if (!kode) return "-";
+  const key = String(kode);
+  return kategoriMap[key] || ("Kategori " + key);
+}
+
+/* ============================================================
+   HITUNG STATUS PER LEVEL
+   ============================================================ */
+function hitungStatus() {
+  const all = state.master.concat(state.manual);
+  let green = 0, yellow = 0, orange = 0, red = 0;
   all.forEach(function(p) {
     const s = getExpiryStatus(p.plu);
     if (s.level === "green") green++;
@@ -455,37 +489,226 @@ function renderDashboard() {
     else if (s.level === "orange") orange++;
     else if (s.level === "red") red++;
   });
+  return { green: green, yellow: yellow, orange: orange, red: red, total: all.length };
+}
 
+/* ============================================================
+   RENDER DASHBOARD
+   ============================================================ */
+let chartStatusInstance = null;
+
+function renderDashboard() {
+  const stats = hitungStatus();
+
+  // 1. Chart Donut
+  renderDonutChart(stats);
+
+  // 2. Stat Cards
   const grid = $("statGrid");
   if (grid) {
     grid.innerHTML =
-      '<div class="stat-card green"><div class="num">' + green + '</div><div class="lbl">🟢 Aman (>30 hari)</div></div>' +
-      '<div class="stat-card yellow"><div class="num">' + yellow + '</div><div class="lbl">🟡 Pantau (15-30 hari)</div></div>' +
-      '<div class="stat-card orange"><div class="num">' + orange + '</div><div class="lbl">🟠 Segera Tarik (1-14 hari)</div></div>' +
-      '<div class="stat-card red"><div class="num">' + red + '</div><div class="lbl">🔴 Expired (lewat)</div></div>';
+      '<div class="stat-card green"><div class="num">' + stats.green + '</div><div class="lbl">🟢 Aman (>30 hari)</div></div>' +
+      '<div class="stat-card yellow"><div class="num">' + stats.yellow + '</div><div class="lbl">🟡 Pantau (15-30 hari)</div></div>' +
+      '<div class="stat-card orange"><div class="num">' + stats.orange + '</div><div class="lbl">🟠 Segera Tarik (1-14 hari)</div></div>' +
+      '<div class="stat-card red"><div class="num">' + stats.red + '</div><div class="lbl">🔴 Expired (lewat)</div></div>';
   }
 
-  const alerts = all
-    .map(function(p) { return { p: p, s: getExpiryStatus(p.plu) }; })
-    .filter(function(x) { return x.s.level === "orange" || x.s.level === "red"; })
-    .sort(function(a, b) { return a.s.days - b.s.days; });
+  // 3. Top 10 Urgent
+  renderTopUrgent();
+}
 
-  const list = $("alertList");
-  if (!list) return;
+/* ============================================================
+   DONUT CHART (ApexCharts)
+   ============================================================ */
+function renderDonutChart(stats) {
+  const el = $("chartStatus");
+  if (!el) return;
 
-  if (!alerts.length) {
-    list.innerHTML = '<div class="empty"><div class="big">✅</div>Tidak ada produk yang perlu ditarik</div>';
-  } else {
-    list.innerHTML = alerts.map(function(x) {
-      return '<div class="list-item">' +
-        '<div class="dot ' + x.s.level + '"></div>' +
-        '<div class="info">' +
-          '<div class="t">' + (x.p.s_descp || x.p.descp || "-") + '</div>' +
-          '<div class="s">PLU ' + x.p.plu + ' · ' + (x.p.lokasi_rak || "rak belum diisi") + ' · ' + x.s.label + '</div>' +
-        '</div>' +
-      '</div>';
-    }).join("");
+  // Kalau ApexCharts belum load, skip
+  if (typeof ApexCharts === "undefined") {
+    el.innerHTML = '<div class="empty">Chart library belum termuat</div>';
+    return;
   }
+
+  const totalUrgent = stats.orange + stats.red;
+
+  const options = {
+    chart: {
+      type: "donut",
+      height: 280,
+      fontFamily: "inherit",
+      animations: { enabled: true, speed: 600 }
+    },
+    series: [stats.green, stats.yellow, stats.orange, stats.red],
+    labels: ["🟢 Aman", "🟡 Pantau", "🟠 Segera Tarik", "🔴 Expired"],
+    colors: ["#16a34a", "#eab308", "#f97316", "#dc2626"],
+    legend: {
+      position: "bottom",
+      fontSize: "12px",
+      fontWeight: 600,
+      markers: { width: 10, height: 10, radius: 3 }
+    },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: "65%",
+          labels: {
+            show: true,
+            name: { fontSize: "12px", color: "#64748b" },
+            value: {
+              fontSize: "22px",
+              fontWeight: 800,
+              color: "#1e293b",
+              formatter: function(v) { return v; }
+            },
+            total: {
+              show: true,
+              label: "Total Produk",
+              fontSize: "11px",
+              color: "#64748b",
+              formatter: function(w) {
+                return w.globals.seriesTotals.reduce(function(a, b) { return a + b; }, 0);
+              }
+            }
+          }
+        }
+      }
+    },
+    dataLabels: { enabled: false },
+    tooltip: {
+      y: { formatter: function(v) { return v + " produk"; } }
+    },
+    responsive: [{
+      breakpoint: 480,
+      options: { chart: { height: 240 }, legend: { position: "bottom" } }
+    }]
+  };
+
+  // Kalau chart sudah ada, destroy dulu
+  if (chartStatusInstance) {
+    chartStatusInstance.destroy();
+    chartStatusInstance = null;
+  }
+
+  el.innerHTML = "";
+  chartStatusInstance = new ApexCharts(el, options);
+  chartStatusInstance.render();
+}
+
+/* ============================================================
+   TOP 10 URGENT LIST
+   ============================================================ */
+function renderTopUrgent() {
+  const box = $("urgentList");
+  if (!box) return;
+
+  const all = state.master.concat(state.manual);
+
+  // Ambil yang punya expired + hitung sisa hari
+  const list = all
+    .filter(function(p) { return state.expired[p.plu]; })
+    .map(function(p) {
+      const s = getExpiryStatus(p.plu);
+      return { p: p, s: s };
+    })
+    .filter(function(x) { return x.s.days !== null; })
+    .sort(function(a, b) { return a.s.days - b.s.days; })
+    .slice(0, 10);
+
+  if (!list.length) {
+    box.innerHTML = '<div class="empty"><div class="big">✅</div>Belum ada produk yang diinput expired</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(function(x, i) {
+    const daysText = x.s.days < 0
+      ? Math.abs(x.s.days) + " hari lalu"
+      : x.s.days + " hari";
+    const katName = namaKategori(x.p.kategori);
+
+    return '<div class="urgent-item ' + x.s.level + '" onclick="bukaProduk(\'' + x.p.plu + '\')">' +
+      '<div class="urgent-rank">' + (i + 1) + '</div>' +
+      '<div class="urgent-info">' +
+        '<div class="name">' + (x.p.s_descp || x.p.descp || "-") + '</div>' +
+        '<div class="meta">' + katName + ' · ' + (x.p.lokasi_rak || "rak belum diisi") + '</div>' +
+      '</div>' +
+      '<div class="urgent-days ' + x.s.level + '">' + daysText + '</div>' +
+    '</div>';
+  }).join("");
+}
+
+/* ============================================================
+   BUKA PRODUK DARI LIST URGENT
+   ============================================================ */
+window.bukaProduk = function(plu) {
+  const p = findProduct(plu);
+  if (!p) return;
+
+  // Pindah ke tab Scan
+  document.querySelectorAll("nav button").forEach(function(b) { b.classList.remove("active"); });
+  document.querySelectorAll(".page").forEach(function(pg) { pg.classList.remove("active"); });
+  const navScan = document.querySelector('nav button[data-page="scan"]');
+  if (navScan) navScan.classList.add("active");
+  const pgScan = $("page-scan");
+  if (pgScan) pgScan.classList.add("active");
+
+  // Render hasil
+  renderScanResult(p, plu);
+
+  // Scroll ke atas
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+/* ============================================================
+   SEARCH BY NAMA / BARCODE / PLU
+   ============================================================ */
+function cariProdukMulti(query) {
+  if (!query || query.length < 2) return [];
+  const q = query.toLowerCase().trim();
+  const all = state.master.concat(state.manual);
+
+  // Prioritas 1: exact match barcode atau PLU
+  const exact = all.filter(function(p) {
+    return String(p.barcode || "").toLowerCase() === q ||
+           String(p.plu || "").toLowerCase() === q;
+  });
+  if (exact.length) return exact.slice(0, 20);
+
+  // Prioritas 2: contains di nama / barcode / PLU
+  return all.filter(function(p) {
+    return (p.descp || "").toLowerCase().includes(q) ||
+           (p.s_descp || "").toLowerCase().includes(q) ||
+           String(p.barcode || "").toLowerCase().includes(q) ||
+           String(p.plu || "").toLowerCase().includes(q);
+  }).slice(0, 20);
+}
+
+function renderSearchResults(results, query) {
+  const box = $("searchResults");
+  if (!box) return;
+
+  if (!query || query.length < 2) {
+    box.innerHTML = "";
+    return;
+  }
+
+  if (!results.length) {
+    box.innerHTML = '<div class="empty" style="padding:20px;font-size:12px;">Tidak ada produk cocok dengan "<b>' + query + '</b>"</div>';
+    return;
+  }
+
+  box.innerHTML = results.map(function(p) {
+    const s = getExpiryStatus(p.plu);
+    const kat = namaKategori(p.kategori);
+    return '<div class="search-item" onclick="bukaProduk(\'' + p.plu + '\')">' +
+      '<div class="dot ' + s.level + '"></div>' +
+      '<div class="info">' +
+        '<div class="t">' + (p.s_descp || p.descp || "-") + '</div>' +
+        '<div class="s">' + kat + ' · PLU ' + p.plu + ' · ' + (p.barcode || "-") + '</div>' +
+      '</div>' +
+      '<div class="arrow">›</div>' +
+    '</div>';
+  }).join("");
 }
 
 /* ---------- PRODUK MANUAL ---------- */
@@ -682,18 +905,45 @@ function bindEvents() {
   const bp = $("btnStopScan");  if (bp) bp.onclick = stopScanner;
 
   const bms = $("btnManualSearch");
-  if (bms) bms.onclick = function() {
-    const code = $("manualInput").value.trim();
-    if (!code) { toast("Isi kode dulu", "red"); return; }
-    const p = findProduct(code);
-    renderScanResult(p, code);
-    if (p) toast("✅ Ditemukan", "green"); else toast("❌ Tidak ditemukan", "red");
-  };
+if (bms) bms.onclick = function() {
+  const q = $("manualInput").value.trim();
+  if (!q) { toast("Isi kata kunci dulu", "red"); return; }
+  const results = cariProdukMulti(q);
+  renderSearchResults(results, q);
+  if (results.length === 1) {
+    // Kalau cuma 1 hasil, langsung buka
+    renderScanResult(results[0], q);
+    if ($("searchResults")) $("searchResults").innerHTML = "";
+    toast("✅ Ditemukan", "green");
+  } else if (results.length > 1) {
+    toast("Ditemukan " + results.length + " produk", "green");
+  } else {
+    renderScanResult(null, q);
+    toast("❌ Tidak ditemukan", "red");
+  }
+};
 
-  const mi = $("manualInput");
-  if (mi) mi.addEventListener("keydown", function(e) {
+const mi = $("manualInput");
+if (mi) {
+  mi.addEventListener("keydown", function(e) {
     if (e.key === "Enter") $("btnManualSearch").click();
   });
+
+  // Live search saat user ketik
+  let searchTimer = null;
+  mi.addEventListener("input", function() {
+    clearTimeout(searchTimer);
+    const q = mi.value.trim();
+    searchTimer = setTimeout(function() {
+      if (q.length < 2) {
+        if ($("searchResults")) $("searchResults").innerHTML = "";
+        return;
+      }
+      const results = cariProdukMulti(q);
+      renderSearchResults(results, q);
+    }, 300);
+  });
+};
 
   const bam = $("btnAddManual");
   if (bam) bam.onclick = function() {
@@ -762,6 +1012,8 @@ function bindEvents() {
 
 /* ---------- INIT ---------- */
 function init() {
+  await fetchKategoriMap();
+  state.master = loadLocal(STORAGE.master, []);
   state.master = loadLocal(STORAGE.master, []);
   state.manual = loadLocal(STORAGE.manual, []);
   state.expired = loadLocal(STORAGE.expired, {});
