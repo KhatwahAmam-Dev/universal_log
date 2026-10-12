@@ -165,58 +165,272 @@ function renderScanResult(product, code) {
 }
 
 /* ---------- SCANNER ---------- */
+/* ---------- SCANNER (IMPROVED - HD + AUTO-FALLBACK + SWITCH CAMERA) ---------- */
+let currentCameraIndex = 0;
+let availableCameras = [];
+
 async function startScanner() {
   if (state.scannerActive) return;
+
   if (typeof Html5Qrcode === "undefined") {
-    toast("Library scanner belum termuat", "red");
+    toast("Library scanner belum termuat. Refresh halaman.", "red");
     return;
   }
+
   const btn = $("btnStartScan");
-  btn.innerHTML = '<span class="spinner"></span> Memuat...';
+  btn.innerHTML = '<span class="spinner"></span> Memuat kamera...';
+
+  // Bersihkan sisa stream kamera yang mungkin nyangkut
+  await cleanupStaleStreams();
 
   try {
+    // 1. Cek dulu perangkat kamera yang tersedia
+    availableCameras = await Html5Qrcode.getCameras();
+
+    if (!availableCameras || availableCameras.length === 0) {
+      throw new Error("Kamera tidak terdeteksi di perangkat ini");
+    }
+
+    // 2. Buat instance scanner
     state.scanner = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 260, height: 160 } };
 
-    await state.scanner.start(
-      { facingMode: "environment" },
-      config,
-      function(decodedText) {
-        if (state.lastScan === decodedText) return;
-        state.lastScan = decodedText;
-        setTimeout(function() { state.lastScan = null; }, 2000);
-
-        const p = findProduct(decodedText);
-        renderScanResult(p, decodedText);
-        if (p) toast("✅ " + (p.s_descp || p.descp), "green");
-        else toast("❌ Produk tidak ditemukan", "red");
-
-        if (navigator.vibrate) navigator.vibrate(80);
+    // 3. Konfigurasi HD: 1280x720, fps 15 (lebih smooth untuk barcode)
+    const config = {
+      fps: 15,
+      qrbox: function(viewfinderWidth, viewfinderHeight) {
+        // Kotak scan lebih lebar & proporsional (cocok untuk barcode)
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        return {
+          width: Math.floor(minEdge * 0.85),
+          height: Math.floor(minEdge * 0.45)
+        };
       },
-      function() {}
+      aspectRatio: 1.777, // 16:9
+      disableFlip: false,
+      videoConstraints: {
+        width:  { ideal: 1280, min: 640 },
+        height: { ideal: 720,  min: 480 },
+        facingMode: { ideal: "environment" }, // utamakan kamera belakang
+        // Auto-focus & exposure (kalau didukung browser)
+        advanced: [
+          { focusMode: "continuous" },
+          { exposureMode: "continuous" },
+          { whiteBalanceMode: "continuous" }
+        ]
+      }
+    };
+
+    // 4. Pilih kamera: prioritas "environment" (belakang)
+    let cameraIdOrConfig;
+    const envCam = availableCameras.find(function(c) {
+      return /back|rear|environment|belakang/i.test(c.label || "");
+    });
+
+    if (envCam) {
+      cameraIdOrConfig = envCam.id;
+      currentCameraIndex = availableCameras.indexOf(envCam);
+    } else {
+      cameraIdOrConfig = { facingMode: "environment" };
+    }
+
+    // 5. Coba start dengan HD config
+    await state.scanner.start(
+      cameraIdOrConfig,
+      config,
+      onScanSuccess,
+      function() { /* ignore per-frame errors */ }
     );
 
     state.scannerActive = true;
-    $("btnStartScan").style.display = "none";
-    $("btnStopScan").style.display = "inline-flex";
-    $("btnStartScan").innerHTML = "▶️ Nyalakan Kamera";
+    updateScannerButtons(true);
+
+    // Tampilkan tombol switch kamera kalau ada >1 kamera
+    if (availableCameras.length > 1) {
+      showSwitchCameraButton();
+    }
+
+    toast("✅ Kamera aktif (HD 1280×720)", "green");
+
   } catch (err) {
-    console.error(err);
-    toast("Gagal akses kamera: " + (err.message || err), "red");
-    $("btnStartScan").innerHTML = "▶️ Nyalakan Kamera";
+    console.error("Start scanner error:", err);
+    handleCameraError(err);
+    btn.innerHTML = "▶️ Nyalakan Kamera";
   }
 }
 
-async function stopScanner() {
-  if (!state.scanner || !state.scannerActive) return;
+/* ---------- FALLBACK: kalau HD gagal, coba resolusi rendah ---------- */
+async function startScannerFallback() {
   try {
-    await state.scanner.stop();
+    state.scanner = new Html5Qrcode("reader");
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 150 },
+      videoConstraints: {
+        facingMode: { ideal: "environment" }
+      }
+    };
+    await state.scanner.start(
+      { facingMode: "environment" },
+      config,
+      onScanSuccess,
+      function() {}
+    );
+    state.scannerActive = true;
+    updateScannerButtons(true);
+    toast("✅ Kamera aktif (mode kompatibilitas)", "green");
+  } catch (err) {
+    handleCameraError(err);
+  }
+}
+
+/* ---------- HANDLE ERROR KAMERA DENGAN PESAN JELAS ---------- */
+function handleCameraError(err) {
+  const msg = (err && err.message) ? err.message : String(err);
+  let userMsg = "Gagal akses kamera";
+
+  if (/NotReadableError|Failed to allocate|Could not start/i.test(msg)) {
+    userMsg = "⚠️ Kamera sedang dipakai aplikasi lain. Tutup Zoom/Meet/WhatsApp/OBS, lalu coba lagi.";
+  } else if (/NotAllowedError|Permission denied/i.test(msg)) {
+    userMsg = "⚠️ Izin kamera ditolak. Klik ikon 🔒 di address bar → izinkan Camera.";
+  } else if (/NotFoundError|no camera|tidak terdeteksi/i.test(msg)) {
+    userMsg = "⚠️ Kamera tidak terdeteksi. Pastikan kamera terpasang & aktif.";
+  } else if (/OverconstrainedError/i.test(msg)) {
+    userMsg = "⚠️ Kamera tidak mendukung resolusi ini. Coba tombol fallback.";
+  }
+
+  toast(userMsg, "red");
+
+  // Tawarkan fallback otomatis setelah 1 detik
+  if (/OverconstrainedError|NotReadableError/i.test(msg)) {
+    setTimeout(function() {
+      if (confirm("Coba pakai mode kompatibilitas (resolusi lebih rendah)?")) {
+        startScannerFallback();
+      }
+    }, 800);
+  }
+}
+
+/* ---------- BERSIHKAN STREAM KAMERA YANG NYANGKUT ---------- */
+async function cleanupStaleStreams() {
+  try {
+    // Matikan stream di video element (kalau ada sisa)
+    const videos = document.querySelectorAll("#reader video");
+    videos.forEach(function(v) {
+      if (v.srcObject) {
+        v.srcObject.getTracks().forEach(function(t) { t.stop(); });
+        v.srcObject = null;
+      }
+    });
+
+    // Matikan scanner lama kalau ada
+    if (state.scanner) {
+      try { await state.scanner.stop(); } catch(e) {}
+      try { await state.scanner.clear(); } catch(e) {}
+      state.scanner = null;
+    }
+
+    // Kasih waktu browser release resource
+    await new Promise(function(r) { setTimeout(r, 300); });
+  } catch(e) {
+    console.warn("Cleanup warn:", e);
+  }
+}
+
+/* ---------- UPDATE TOMBOL SCANNER ---------- */
+function updateScannerButtons(isActive) {
+  const bs = $("btnStartScan");
+  const bp = $("btnStopScan");
+  if (bs) {
+    bs.innerHTML = "▶️ Nyalakan Kamera";
+    bs.style.display = isActive ? "none" : "inline-flex";
+  }
+  if (bp) {
+    bp.style.display = isActive ? "inline-flex" : "none";
+  }
+}
+
+/* ---------- TOMBOL SWITCH KAMERA DEPAN/BELAKANG ---------- */
+function showSwitchCameraButton() {
+  // Hapus tombol lama kalau ada
+  const old = $("btnSwitchCam");
+  if (old) old.remove();
+
+  const btn = document.createElement("button");
+  btn.id = "btnSwitchCam";
+  btn.className = "btn orange";
+  btn.innerHTML = "🔄 Ganti Kamera";
+  btn.style.marginTop = "8px";
+  btn.style.width = "100%";
+
+  btn.onclick = async function() {
+    if (!state.scannerActive) return;
+    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+    const cam = availableCameras[currentCameraIndex];
+
+    try {
+      btn.innerHTML = '<span class="spinner"></span> Ganti...';
+      await state.scanner.stop();
+      await state.scanner.start(
+        cam.id,
+        {
+          fps: 15,
+          qrbox: function(w, h) {
+            const m = Math.min(w, h);
+            return { width: Math.floor(m * 0.85), height: Math.floor(m * 0.45) };
+          },
+          videoConstraints: {
+            width: { ideal: 1280 }, height: { ideal: 720 },
+            advanced: [{ focusMode: "continuous" }]
+          }
+        },
+        onScanSuccess,
+        function() {}
+      );
+      btn.innerHTML = "🔄 Ganti Kamera";
+      toast("✅ Pindah ke: " + (cam.label || "Kamera " + (currentCameraIndex + 1)), "green");
+    } catch (err) {
+      console.error(err);
+      btn.innerHTML = "🔄 Ganti Kamera";
+      toast("Gagal ganti kamera: " + (err.message || err), "red");
+    }
+  };
+
+  const readerBox = $("reader");
+  if (readerBox && readerBox.parentNode) {
+    readerBox.parentNode.insertBefore(btn, readerBox.nextSibling);
+  }
+}
+
+/* ---------- CALLBACK SCAN BERHASIL ---------- */
+function onScanSuccess(decodedText) {
+  if (state.lastScan === decodedText) return;
+  state.lastScan = decodedText;
+  setTimeout(function() { state.lastScan = null; }, 2000);
+
+  const p = findProduct(decodedText);
+  renderScanResult(p, decodedText);
+  if (p) toast("✅ " + (p.s_descp || p.descp), "green");
+  else toast("❌ Produk tidak ditemukan", "red");
+
+  if (navigator.vibrate) navigator.vibrate(80);
+}
+
+/* ---------- STOP SCANNER ---------- */
+async function stopScanner() {
+  if (!state.scanner) return;
+  try {
+    if (state.scannerActive) await state.scanner.stop();
     await state.scanner.clear();
   } catch(e) {}
-  state.scannerActive = false;
   state.scanner = null;
-  $("btnStartScan").style.display = "inline-flex";
-  $("btnStopScan").style.display = "none";
+  state.scannerActive = false;
+
+  // Hapus tombol switch kamera
+  const sc = $("btnSwitchCam");
+  if (sc) sc.remove();
+
+  updateScannerButtons(false);
+  toast("Kamera dimatikan");
 }
 
 /* ---------- DASHBOARD ---------- */
