@@ -1,0 +1,30 @@
+{
+  "kepala_toko": {
+    "username": "rina",
+    "pin": "999999",
+    "nama": "Bu Rina"
+  },
+  "crew": [
+    {
+      "username": "andi",
+      "pin": "111111",
+      "nama": "Andi",
+      "rak": ["ANDI-1", "ANDI-2"],
+      "shift": "pagi"
+    },
+    {
+      "username": "budi",
+      "pin": "222222",
+      "nama": "Budi",
+      "rak": ["BUDI-1"],
+      "shift": "sore"
+    },
+    {
+      "username": "wati",
+      "pin": "333333",
+      "nama": "Wati",
+      "rak": ["WATI-3"],
+      "shift": "pagi"
+    }
+  ]
+}
