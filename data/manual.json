@@ -1,0 +1,27 @@
+[
+  {
+    "plu": 1011011,
+    "descp": "818 HIJAU BERAS 2.5KG",
+    "s_descp": "818 HIJAU BERAS 2.5KG",
+    "barcode": "0745604688550",
+    "kategori": 1011,
+    "price1": 39000,
+    "price2": 0,
+    "price3": 0,
+    "m_price": 0,
+    "qty1": 1,
+    "qty2": 8,
+    "qty3": 0,
+    "maks": 0,
+    "m_maks": 0,
+    "disc1": 0,
+    "disc2": 0,
+    "disc3": 0,
+    "ppn": 0,
+    "f_point": "F",
+    "tgl_buat": "2026-08-28",
+    "lokasi_rak": "LC1-4-A-1-1-1-1-3-2-B-4",
+    "retur_hari": 0,
+    "satuan": "PCS"
+  },
+]
