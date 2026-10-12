@@ -3,7 +3,7 @@
    Crafted by AndrewCS77 · Powered by DeepSeek
    ============================================================ */
 
-const GITHUB_URL_DEFAULT = "const GITHUB_URL_DEFAULT = "https://raw.githubusercontent.com/KhatwahAmam-Dev/universal_log/main/data/master.json";";
+const GITHUB_URL_DEFAULT = "https://raw.githubusercontent.com/KhatwahAmam-Dev/universal_log/main/data/master.json";
 const STORAGE = {
   master: "cs77_master",
   manual: "cs77_manual",
