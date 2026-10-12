@@ -1526,6 +1526,10 @@ function renderDataInfo() {
 
 /* ---------- INIT ---------- */
 async function init() {
+   // Fetch kategori dulu
+  await fetchKategoriMap();
+
+  state.master = loadLocal(STORAGE.master, []);
   // load dari localStorage dulu (offline-first)
   state.master = loadLocal(STORAGE.master, []);
   state.manual = loadLocal(STORAGE.manual, []);
@@ -1569,6 +1573,47 @@ document.querySelectorAll("nav button").forEach(btn => {
     if (btn.dataset.page === "data") renderDataInfo();
   };
 });
+
+  const bms = $("btnManualSearch");
+if (bms) bms.onclick = function() {
+  const q = $("manualInput").value.trim();
+  if (!q) { toast("Isi kata kunci dulu", "red"); return; }
+  const results = cariProdukMulti(q);
+  renderSearchResults(results, q);
+  if (results.length === 1) {
+    // Kalau cuma 1 hasil, langsung buka
+    renderScanResult(results[0], q);
+    if ($("searchResults")) $("searchResults").innerHTML = "";
+    toast("✅ Ditemukan", "green");
+  } else if (results.length > 1) {
+    toast("Ditemukan " + results.length + " produk", "green");
+  } else {
+    renderScanResult(null, q);
+    toast("❌ Tidak ditemukan", "red");
+  }
+};
+
+const mi = $("manualInput");
+if (mi) {
+  mi.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") $("btnManualSearch").click();
+  });
+
+  // Live search saat user ketik
+  let searchTimer = null;
+  mi.addEventListener("input", function() {
+    clearTimeout(searchTimer);
+    const q = mi.value.trim();
+    searchTimer = setTimeout(function() {
+      if (q.length < 2) {
+        if ($("searchResults")) $("searchResults").innerHTML = "";
+        return;
+      }
+      const results = cariProdukMulti(q);
+      renderSearchResults(results, q);
+    }, 300);
+  });
+}
 
 $("btnStartScan").onclick = startScanner;
 $("btnStopScan").onclick = stopScanner;
