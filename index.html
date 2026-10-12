@@ -346,6 +346,148 @@
 
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
+
+  /* ============================================================
+   SOCIAL FOOTER
+   ============================================================ */
+.social-footer-container {
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  padding: 20px 16px 16px;
+  text-align: center;
+  margin-top: auto;
+}
+
+/* Row 1: Icon Social Media */
+.social-footer-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.social-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.social-icon:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22);
+}
+
+.social-icon:active { transform: scale(0.95); }
+
+/* Warna brand */
+.social-icon.linkedin  { background: #0077b5; }
+.social-icon.facebook  { background: #1877f2; }
+.social-icon.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.social-icon.whatsapp  { background: #25d366; }
+.social-icon.shopee    { background: #ee4d2d; }
+.social-icon.tiktok    { background: #000; }
+
+/* Tooltip */
+.social-icon .tooltip {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #1e293b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.social-icon .tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #1e293b;
+}
+
+.social-icon:hover .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Row 2: Branding CS77 + DeepSeek */
+.footer-brand {
+  padding: 12px 0;
+  border-top: 1px dashed #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.footer-brand .brand-line {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.footer-brand .brand {
+  font-weight: 700;
+  color: #475569;
+}
+
+.footer-brand .sep { color: #cbd5e1; }
+
+.footer-brand .deepseek {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+/* Row 3: Credits */
+.footer-credits {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.footer-credits strong {
+  color: #475569;
+  font-weight: 700;
+}
+
+.footer-credits .copyright {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .social-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .social-footer-bar { gap: 8px; }
+  .footer-brand .brand-line { font-size: 11px; }
+}
 </style>
 </head>
 <body>
@@ -460,10 +602,53 @@
 
 </main>
 
-<footer>
-  <div class="brand">Crafted by AndrewCS77</div>
-  <div>Powered by <span class="deepseek">DeepSeek</span> · © 2026 CS77</div>
+<footer class="social-footer-container">
+  <!-- Row 1: Icon Social Media -->
+  <div class="social-footer-bar">
+    <a href="https://www.linkedin.com/in/yudi-dwiranto-cs77" target="_blank" rel="noopener noreferrer" class="social-icon linkedin" aria-label="LinkedIn">
+      <i class="fab fa-linkedin-in"></i>
+      <span class="tooltip">LinkedIn</span>
+    </a>
+    <a href="https://web.facebook.com/ydwiranto" target="_blank" rel="noopener noreferrer" class="social-icon facebook" aria-label="Facebook">
+      <i class="fab fa-facebook-f"></i>
+      <span class="tooltip">Facebook</span>
+    </a>
+    <a href="https://www.instagram.com/yudi_cah_sragen_77/" target="_blank" rel="noopener noreferrer" class="social-icon instagram" aria-label="Instagram">
+      <i class="fab fa-instagram"></i>
+      <span class="tooltip">Instagram</span>
+    </a>
+    <a href="https://wa.me/6281389188903?text=Assalamu.alaikum...%20Halo!%20Selamat%20[Pagi,%20Siang,%20Sore]%20Saya%20baru%20saja%20melihat%20web%20aplikasi%20Anda%20dan%20tertarik%20dengan%20solusinya.%20Kalau%20ada%20waktu%20luang,%20boleh%20kita%20mengobrol%20santai%20dulu%20untuk%20melihat%20potensi%20kerja%20sama%20ke%20depan%20?%20Terima%20kasih" target="_blank" rel="noopener noreferrer" class="social-icon whatsapp" aria-label="WhatsApp">
+      <i class="fab fa-whatsapp"></i>
+      <span class="tooltip">WhatsApp</span>
+    </a>
+    <a href="https://id.shp.ee/yudmwbm1?fromSource=whatsapp&smtt=0.0.3" target="_blank" rel="noopener noreferrer" class="social-icon shopee" aria-label="Shopee">
+      <i class="fas fa-shopping-bag"></i>
+      <span class="tooltip">Shopee</span>
+    </a>
+    <a href="https://www.tiktok.com/@selarasdirumah" target="_blank" rel="noopener noreferrer" class="social-icon tiktok" aria-label="TikTok">
+      <i class="fab fa-tiktok"></i>
+      <span class="tooltip">TikTok</span>
+    </a>
+  </div>
+
+  <!-- Row 2: Branding CS77 & DeepSeek -->
+  <div class="footer-brand">
+    <div class="brand-line">
+      <span class="brand">Crafted by AndrewCS77</span>
+      <span class="sep">·</span>
+      <span>Powered by <span class="deepseek">DeepSeek</span></span>
+    </div>
+  </div>
+
+  <!-- Row 3: Kredit & Copyright -->
+  <div class="footer-credits">
+    Handcrafted with ❤️ by <strong>Andrew Dwiranto</strong> (Cah_Sragen_77, Indonesia)
+    <div class="copyright">© 2026 Hak Cipta Dilindungi Undang-Undang</div>
+  </div>
 </footer>
+
+<!-- Font Awesome CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <div class="toast" id="toast"></div>
 <script>
