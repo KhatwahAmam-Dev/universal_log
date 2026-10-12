@@ -28,12 +28,22 @@ function toast(msg, type) {
   type = type || "";
   const t = $("toast");
   if (!t) return;
+
+  // Reset animasi kalau toast sebelumnya masih muncul
+  t.className = "toast " + type;
+  void t.offsetWidth; // 🔑 paksa reflow biar animasi restart
+
+  // Tampilkan
   t.textContent = msg;
   t.className = "toast show " + type;
-  clearTimeout(t._timer);
-  t._timer = setTimeout(function() { t.className = "toast " + type; }, 2600);
-}
 
+  // Auto-hide dengan durasi adaptif (pesan panjang = tampil lebih lama)
+  const durasi = Math.min(4500, Math.max(2200, msg.length * 60));
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function() {
+    t.className = "toast " + type; // hilang total
+  }, durasi);
+}
 function daysBetween(a, b) {
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
