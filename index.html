@@ -314,22 +314,34 @@
   .empty .big { font-size: 40px; margin-bottom: 8px; }
 
   .toast {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%) translateY(120%);
-    background: #1e293b;
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 30px;
-    font-size: 13px;
-    font-weight: 600;
-    z-index: 1000;
-    transition: transform 0.3s;
-    max-width: 90vw;
-    text-align: center;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); }
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+
+  /* 🔑 Kunci perbaikan: sembunyikan total saat tidak aktif */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+}
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
+}
   .toast.green { background: var(--green); }
   .toast.red { background: var(--red); }
   .toast.orange { background: var(--orange); }
@@ -678,12 +690,25 @@ let state = {
 const $ = (id) => document.getElementById(id);
 const today = () => new Date(new Date().toDateString());
 
-function toast(msg, type = "") {
+function toast(msg, type) {
+  type = type || "";
   const t = $("toast");
+  if (!t) return;
+
+  // Reset animasi kalau toast sebelumnya masih muncul
+  t.className = "toast " + type;
+  void t.offsetWidth; // 🔑 paksa reflow biar animasi restart
+
+  // Tampilkan
   t.textContent = msg;
   t.className = "toast show " + type;
+
+  // Auto-hide dengan durasi adaptif (pesan panjang = tampil lebih lama)
+  const durasi = Math.min(4500, Math.max(2200, msg.length * 60));
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.className = "toast " + type, 2600);
+  t._timer = setTimeout(function() {
+    t.className = "toast " + type; // hilang total
+  }, durasi);
 }
 
 function daysBetween(a, b) {
