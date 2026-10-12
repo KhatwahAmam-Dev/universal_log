@@ -1011,7 +1011,7 @@ if (mi) {
 }
 
 /* ---------- INIT ---------- */
-function init() {
+async function init() {
   await fetchKategoriMap();
   state.master = loadLocal(STORAGE.master, []);
   state.master = loadLocal(STORAGE.master, []);
