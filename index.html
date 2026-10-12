@@ -41,23 +41,36 @@
     </div>
 
     <div class="card">
-      <h3>🔎 Atau ketik barcode / PLU</h3>
-      <div class="row">
-        <input type="text" id="manualInput" placeholder="Ketik barcode atau PLU..." inputmode="numeric">
-        <button class="btn" id="btnManualSearch" style="flex:0 0 auto;">Cari</button>
-      </div>
-    </div>
+  <h3>🔎 Cari Produk</h3>
+  <p style="font-size:11px;color:#64748b;margin-bottom:8px;">
+    Bisa ketik: <b>nama produk</b> · <b>barcode</b> · <b>PLU</b>
+  </p>
+  <div class="row">
+    <input type="text" id="manualInput" placeholder="Contoh: beras / 8993496110587 / 1011011" autocomplete="off">
+    <button class="btn" id="btnManualSearch" style="flex:0 0 auto;">Cari</button>
+  </div>
+  <div id="searchResults" class="search-results"></div>
+</div>
 
     <div id="scanResult"></div>
   </section>
 
   <section class="page" id="page-dashboard">
-    <div class="stat-grid" id="statGrid"></div>
-    <div class="card">
-      <h3>🚨 Produk Perlu Perhatian</h3>
-      <div id="alertList"><div class="empty"><div class="big">✅</div>Belum ada produk yang diinput expired</div></div>
-    </div>
-  </section>
+  <!-- Chart Donut Status -->
+  <div class="chart-box">
+    <h3>📊 Status Expired</h3>
+    <div id="chartStatus"></div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-grid" id="statGrid"></div>
+
+  <!-- Top 10 Urgent -->
+  <div class="card">
+    <h3>🚨 Top 10 Produk Paling Urgent</h3>
+    <div id="urgentList" class="urgent-list"></div>
+  </div>
+</section>
 
   <section class="page" id="page-manual">
     <div class="card">
