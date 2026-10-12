@@ -3,7 +3,7 @@
    Crafted by AndrewCS77 · Powered by DeepSeek
    ============================================================ */
 
-const GITHUB_URL_DEFAULT = "https://raw.githubusercontent.com/khatwahamam-dev/lomag-scan-cloud/main/data/master.json";
+const GITHUB_URL_DEFAULT = "https://raw.githubusercontent.com/khatwahamam-dev/universal_log/data/master.json";
 const STORAGE = {
   master: "cs77_master",
   manual: "cs77_manual",
